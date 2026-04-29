@@ -1,1 +1,22 @@
 .DS_Store
+
+# Claude
+.claude/
+
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfplan
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+dist/
+build/
+
+# Artifacts
+*.zip
