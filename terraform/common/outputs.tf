@@ -18,6 +18,11 @@ output "endpoint_arn" {
   value       = module.agent_runtime.endpoint_arn
 }
 
+output "endpoint_name" {
+  description = "The AgentCore runtime endpoint name (used as qualifier when invoking)"
+  value       = module.agent_runtime.endpoint_name
+}
+
 output "role_arn" {
   description = "The IAM role ARN used by the runtime"
   value       = module.agent_runtime.role_arn

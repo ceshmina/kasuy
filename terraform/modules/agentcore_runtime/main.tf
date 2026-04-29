@@ -45,13 +45,13 @@ data "aws_iam_policy_document" "runtime_permissions" {
 }
 
 resource "aws_iam_role" "this" {
-  name               = "${var.agent_runtime_name}-${var.environment}-role"
+  name               = "${var.agent_runtime_name}_${var.environment}_role"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
   tags               = var.tags
 }
 
 resource "aws_iam_role_policy" "this" {
-  name   = "${var.agent_runtime_name}-${var.environment}-policy"
+  name   = "${var.agent_runtime_name}_${var.environment}_policy"
   role   = aws_iam_role.this.id
   policy = data.aws_iam_policy_document.runtime_permissions.json
 }
@@ -61,7 +61,7 @@ resource "aws_iam_role_policy" "this" {
 ################################################################################
 
 resource "aws_bedrockagentcore_agent_runtime" "this" {
-  agent_runtime_name = "${var.agent_runtime_name}-${var.environment}"
+  agent_runtime_name = "${var.agent_runtime_name}_${var.environment}"
   description        = var.description
   role_arn           = aws_iam_role.this.arn
 
@@ -89,7 +89,7 @@ resource "aws_bedrockagentcore_agent_runtime" "this" {
 ################################################################################
 
 resource "aws_bedrockagentcore_agent_runtime_endpoint" "this" {
-  name             = "${var.agent_runtime_name}-${var.environment}-endpoint"
+  name             = "${var.agent_runtime_name}_${var.environment}_endpoint"
   agent_runtime_id = aws_bedrockagentcore_agent_runtime.this.agent_runtime_id
   description      = "Endpoint for ${var.agent_runtime_name} (${var.environment})"
 

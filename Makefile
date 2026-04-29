@@ -2,17 +2,53 @@
        init-staging init-production \
        plan-staging plan-production \
        apply-staging apply-production \
-       agent-local agent-test
+       agent-serve-local \
+       agent-invoke-local agent-invoke-staging agent-invoke-production \
+       agent-push-staging agent-push-production
 
 # ==============================================================================
-# Agent Local
+# Agent Serve (local)
 # ==============================================================================
 
-agent-local:
+agent-serve-local:
 	cd agent && AWS_PROFILE=apkas-staging.admin uv run main.py
 
-agent-test:
-	python3 agent/test_local.py "$(or $(PROMPT),Hello)"
+# ==============================================================================
+# Agent Invoke
+# ==============================================================================
+
+agent-invoke-local:
+	cd agent && uv run python invoke.py local "$(or $(PROMPT),Hello)"
+
+agent-invoke-staging:
+	$(eval ARN := $(shell cd terraform/env/staging && AWS_PROFILE=apkas-staging.admin terraform output -raw agent_runtime_arn))
+	$(eval QUALIFIER := $(shell cd terraform/env/staging && AWS_PROFILE=apkas-staging.admin terraform output -raw endpoint_name))
+	cd agent && AWS_PROFILE=apkas-staging.admin AGENT_RUNTIME_ARN=$(ARN) AGENT_QUALIFIER=$(QUALIFIER) uv run python invoke.py staging "$(or $(PROMPT),Hello)"
+
+agent-invoke-production:
+	$(eval ARN := $(shell cd terraform/env/production && AWS_PROFILE=apkas-production.admin terraform output -raw agent_runtime_arn))
+	$(eval QUALIFIER := $(shell cd terraform/env/production && AWS_PROFILE=apkas-production.admin terraform output -raw endpoint_name))
+	cd agent && AWS_PROFILE=apkas-production.admin AGENT_RUNTIME_ARN=$(ARN) AGENT_QUALIFIER=$(QUALIFIER) uv run python invoke.py production "$(or $(PROMPT),Hello)"
+
+# ==============================================================================
+# Agent ECR Push
+# ==============================================================================
+
+AWS_REGION ?= ap-northeast-1
+ECR_REPOSITORY = kasuy-agent
+TAG ?= latest
+
+agent-push-staging:
+	$(eval ACCOUNT_ID := $(shell AWS_PROFILE=apkas-staging.admin aws sts get-caller-identity --query Account --output text))
+	$(eval REGISTRY := $(ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com)
+	AWS_PROFILE=apkas-staging.admin aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(REGISTRY)
+	cd agent && docker buildx build --platform linux/arm64 -t $(REGISTRY)/$(ECR_REPOSITORY):$(TAG) --push .
+
+agent-push-production:
+	$(eval ACCOUNT_ID := $(shell AWS_PROFILE=apkas-production.admin aws sts get-caller-identity --query Account --output text))
+	$(eval REGISTRY := $(ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com)
+	AWS_PROFILE=apkas-production.admin aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(REGISTRY)
+	cd agent && docker buildx build --platform linux/arm64 -t $(REGISTRY)/$(ECR_REPOSITORY):$(TAG) --push .
 
 # ==============================================================================
 # AWS SSO Login

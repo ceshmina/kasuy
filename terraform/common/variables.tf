@@ -26,7 +26,7 @@ variable "project_name" {
 variable "agent_runtime_name" {
   description = "Base name for the AgentCore agent runtime"
   type        = string
-  default     = "kasuy-qa-agent"
+  default     = "kasuy_agent"
 }
 
 variable "agent_description" {

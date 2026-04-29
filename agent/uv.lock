@@ -338,12 +338,14 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "bedrock-agentcore" },
+    { name = "boto3" },
     { name = "strands-agents" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "bedrock-agentcore", specifier = ">=0.1.0" },
+    { name = "boto3", specifier = ">=1.35.0" },
     { name = "strands-agents", specifier = ">=0.1.0" },
 ]
 

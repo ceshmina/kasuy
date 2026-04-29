@@ -13,6 +13,11 @@ output "endpoint_arn" {
   value       = aws_bedrockagentcore_agent_runtime_endpoint.this.agent_runtime_endpoint_arn
 }
 
+output "endpoint_name" {
+  description = "The name of the runtime endpoint (used as qualifier when invoking)"
+  value       = aws_bedrockagentcore_agent_runtime_endpoint.this.name
+}
+
 output "role_arn" {
   description = "The ARN of the IAM role used by the runtime"
   value       = aws_iam_role.this.arn
