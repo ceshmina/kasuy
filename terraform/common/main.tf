@@ -24,3 +24,19 @@ module "agent_runtime" {
     Environment = var.environment
   }
 }
+
+module "slack_integration" {
+  source = "../../modules/slack_integration"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  agent_runtime_arn   = module.agent_runtime.agent_runtime_arn
+  agent_qualifier     = module.agent_runtime.endpoint_name
+  receiver_source_dir = "${path.module}/../../../slack_bot/receiver"
+  invoker_source_dir  = "${path.module}/../../../slack_bot/invoker"
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}

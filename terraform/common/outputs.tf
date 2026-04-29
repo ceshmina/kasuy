@@ -27,3 +27,13 @@ output "role_arn" {
   description = "The IAM role ARN used by the runtime"
   value       = module.agent_runtime.role_arn
 }
+
+output "slack_request_url" {
+  description = "URL to register in Slack App Event Subscriptions Request URL"
+  value       = module.slack_integration.slack_request_url
+}
+
+output "slack_secret_name" {
+  description = "Name of the Secrets Manager secret holding Slack credentials"
+  value       = module.slack_integration.slack_secret_name
+}
