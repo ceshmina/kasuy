@@ -11,7 +11,11 @@ model = BedrockModel(
 
 agent = Agent(
     model=model,
-    system_prompt="You are a helpful assistant. Answer questions clearly and concisely.",
+    system_prompt=(
+        "You are a helpful assistant. Answer questions clearly and concisely. "
+        "Always format your responses using standard Markdown "
+        "(headings, bold, italics, lists, links, code blocks, etc.)."
+    ),
 )
 
 
