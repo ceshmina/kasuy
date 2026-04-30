@@ -7,6 +7,7 @@ _TABLE_BLOCK_RE = re.compile(
     r"(?:\n\|[^\n]+\|[ \t]*)*",
     re.MULTILINE,
 )
+_HR_RE = re.compile(r"^[ \t]*([-*_])\1{2,}[ \t]*$", re.MULTILINE)
 _FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
 _INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
@@ -25,6 +26,7 @@ _BOLD_OPEN = "\x00B\x00"
 _BOLD_CLOSE = "\x00b\x00"
 
 _BULLETS = ("•", "◦", "▪")
+_HR_REPLACEMENT = "─" * 20
 
 
 def _heading_repl(match: "re.Match[str]") -> str:
@@ -56,6 +58,8 @@ def to_mrkdwn(text: str) -> str:
     )
     text = _FENCE_RE.sub(stash_match, text)
     text = _INLINE_CODE_RE.sub(stash_match, text)
+
+    text = _HR_RE.sub(_HR_REPLACEMENT, text)
 
     text = _LINK_RE.sub(lambda m: f"<{m.group(2)}|{m.group(1)}>", text)
     text = _HEADING_RE.sub(_heading_repl, text)

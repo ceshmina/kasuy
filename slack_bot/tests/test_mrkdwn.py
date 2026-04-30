@@ -92,6 +92,34 @@ class ToMrkdwnTest(unittest.TestCase):
     def test_double_dash_flag_not_bulleted(self) -> None:
         self.assert_convert("--verbose flag", "--verbose flag")
 
+    def test_horizontal_rule_dashes(self) -> None:
+        self.assert_convert(
+            "Above\n\n---\n\nBelow",
+            "Above\n\n" + ("─" * 20) + "\n\nBelow",
+        )
+
+    def test_horizontal_rule_stars(self) -> None:
+        self.assert_convert(
+            "Above\n\n***\n\nBelow",
+            "Above\n\n" + ("─" * 20) + "\n\nBelow",
+        )
+
+    def test_horizontal_rule_underscores(self) -> None:
+        self.assert_convert(
+            "Above\n\n___\n\nBelow",
+            "Above\n\n" + ("─" * 20) + "\n\nBelow",
+        )
+
+    def test_long_dash_line_is_hr(self) -> None:
+        self.assert_convert("------", "─" * 20)
+
+    def test_indented_hr(self) -> None:
+        self.assert_convert("  ---", "─" * 20)
+
+    def test_hr_inside_code_block_preserved(self) -> None:
+        source = "```\n---\n***\n```"
+        self.assert_convert(source, source)
+
     def test_simple_table_wrapped_in_code_fence(self) -> None:
         table = "| Name | Age |\n|------|-----|\n| Alice | 30 |\n| Bob | 25 |"
         expected = (
