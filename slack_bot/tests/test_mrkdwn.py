@@ -71,14 +71,48 @@ class ToMrkdwnTest(unittest.TestCase):
             "Click <https://example.com/a_b_c|here> now",
         )
 
-    def test_unordered_list(self) -> None:
-        self.assert_convert("- item one\n- item two", "- item one\n- item two")
+    def test_dash_list_to_bullet(self) -> None:
+        self.assert_convert("- one\n- two", "• one\n• two")
+
+    def test_star_list_to_bullet(self) -> None:
+        self.assert_convert("* one\n* two", "• one\n• two")
 
     def test_ordered_list(self) -> None:
         self.assert_convert("1. one\n2. two", "1. one\n2. two")
 
     def test_star_list_with_inline_bold(self) -> None:
-        self.assert_convert("* list **bold** here", "* list *bold* here")
+        self.assert_convert("* list **bold** here", "• list *bold* here")
+
+    def test_nested_list_uses_subbullets(self) -> None:
+        self.assert_convert(
+            "- one\n  - sub\n  - sub2\n- two",
+            "• one\n  ◦ sub\n  ◦ sub2\n• two",
+        )
+
+    def test_double_dash_flag_not_bulleted(self) -> None:
+        self.assert_convert("--verbose flag", "--verbose flag")
+
+    def test_simple_table_wrapped_in_code_fence(self) -> None:
+        table = "| Name | Age |\n|------|-----|\n| Alice | 30 |\n| Bob | 25 |"
+        expected = (
+            "```\n| Name | Age |\n|------|-----|\n| Alice | 30 |\n| Bob | 25 |\n```"
+        )
+        self.assert_convert(table, expected)
+
+    def test_aligned_table_wrapped_in_code_fence(self) -> None:
+        table = "| Col | Val |\n| :--- | ---: |\n| a | 1 |"
+        expected = "```\n| Col | Val |\n| :--- | ---: |\n| a | 1 |\n```"
+        self.assert_convert(table, expected)
+
+    def test_table_with_following_paragraph(self) -> None:
+        source = "| h |\n|---|\n| a |\n\nAfter"
+        expected = "```\n| h |\n|---|\n| a |\n```\n\nAfter"
+        self.assert_convert(source, expected)
+
+    def test_table_content_not_treated_as_bold(self) -> None:
+        source = "| **x** | y |\n|---|---|\n| a | b |"
+        expected = "```\n| **x** | y |\n|---|---|\n| a | b |\n```"
+        self.assert_convert(source, expected)
 
     def test_blockquote_passthrough(self) -> None:
         self.assert_convert("> quoted line", "> quoted line")
