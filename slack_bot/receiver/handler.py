@@ -138,18 +138,9 @@ def lambda_handler(event, context):
     if not channel:
         return _ok()
 
-    if inner_type == "app_mention":
-        thread_ts = inner.get("thread_ts") or inner.get("ts")
-    elif inner_type == "message":
-        if inner.get("subtype"):
-            return _ok()
-        thread_ts = inner.get("thread_ts")
-        if not thread_ts:
-            return _ok()
-        if bot_user_id and f"<@{bot_user_id}>" not in text:
-            return _ok()
-    else:
+    if inner_type != "app_mention":
         return _ok()
+    thread_ts = inner.get("thread_ts") or inner.get("ts")
 
     placeholder_ts = _slack_post_message(channel, thread_ts, "_処理中…_")
     if not placeholder_ts:
