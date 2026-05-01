@@ -42,6 +42,15 @@ data "aws_iam_policy_document" "runtime_permissions" {
     ]
     resources = ["*"]
   }
+
+  dynamic "statement" {
+    for_each = length(var.additional_secret_arns) > 0 ? [1] : []
+    content {
+      effect    = "Allow"
+      actions   = ["secretsmanager:GetSecretValue"]
+      resources = var.additional_secret_arns
+    }
+  }
 }
 
 resource "aws_iam_role" "this" {

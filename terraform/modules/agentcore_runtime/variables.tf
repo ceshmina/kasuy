@@ -31,6 +31,12 @@ variable "environment_variables" {
   default     = {}
 }
 
+variable "additional_secret_arns" {
+  description = "Extra Secrets Manager ARNs the runtime is allowed to read (e.g., gateway client credentials)"
+  type        = list(string)
+  default     = []
+}
+
 variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)

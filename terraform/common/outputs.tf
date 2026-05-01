@@ -37,3 +37,38 @@ output "slack_secret_name" {
   description = "Name of the Secrets Manager secret holding Slack credentials"
   value       = module.slack_integration.slack_secret_name
 }
+
+output "gateway_id" {
+  description = "AgentCore Gateway ID"
+  value       = module.agentcore_gateway.gateway_id
+}
+
+output "gateway_url" {
+  description = "AgentCore Gateway MCP endpoint URL"
+  value       = module.agentcore_gateway.gateway_url
+}
+
+output "cognito_user_pool_id" {
+  description = "Cognito User Pool ID for Gateway M2M authentication"
+  value       = module.agentcore_gateway.cognito_user_pool_id
+}
+
+output "cognito_app_client_id" {
+  description = "Cognito M2M App Client ID"
+  value       = module.agentcore_gateway.cognito_app_client_id
+}
+
+output "agentcore_gateway_client_secret_name" {
+  description = "Secrets Manager name holding Cognito M2M client credentials"
+  value       = module.agentcore_gateway.client_secret_name
+}
+
+output "tavily_secret_name" {
+  description = "Secrets Manager name holding the Tavily API key"
+  value       = module.agentcore_gateway.tavily_secret_name
+}
+
+output "search_function_name" {
+  description = "Search Lambda function name"
+  value       = module.agentcore_gateway.search_function_name
+}
