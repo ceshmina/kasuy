@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -12,6 +13,8 @@ from mcp.client.streamable_http import streamablehttp_client
 from strands import Agent
 from strands.models import BedrockModel
 from strands.tools.mcp import MCPClient
+
+EXPECTED_MCP_TOOLS = {"web_search", "web_extract"}
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger("kasuy.agent")
@@ -76,7 +79,24 @@ def _build_tools() -> list:
             timeout=30.0,
         )
 
-    return [MCPClient(_make_transport)]
+    mcp_client = MCPClient(_make_transport)
+
+    # Eagerly fetch the tool list and validate the expected tools are present.
+    # Strands' MCPClient caches the first tools/list result for the lifetime of
+    # the process; if a transient partial response slips in (e.g. a paginated
+    # second page is dropped), the container would silently serve with only
+    # web_search until it is recycled. Failing fast here lets AgentCore Runtime
+    # rotate the unhealthy container instead.
+    loaded = asyncio.run(mcp_client.load_tools())
+    tool_names = sorted(t.tool_name for t in loaded)
+    suffixes = {name.rsplit("___", 1)[-1] for name in tool_names}
+    missing = EXPECTED_MCP_TOOLS - suffixes
+    if missing:
+        raise RuntimeError(
+            f"AgentCore Gateway returned partial tool list: missing={sorted(missing)} got={tool_names}"
+        )
+    logger.info("loaded MCP tools: %s", tool_names)
+    return [mcp_client]
 
 
 model = BedrockModel(
