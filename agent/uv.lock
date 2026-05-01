@@ -339,6 +339,8 @@ source = { virtual = "." }
 dependencies = [
     { name = "bedrock-agentcore" },
     { name = "boto3" },
+    { name = "httpx" },
+    { name = "mcp" },
     { name = "strands-agents" },
 ]
 
@@ -346,7 +348,9 @@ dependencies = [
 requires-dist = [
     { name = "bedrock-agentcore", specifier = ">=0.1.0" },
     { name = "boto3", specifier = ">=1.35.0" },
-    { name = "strands-agents", specifier = ">=0.1.0" },
+    { name = "httpx", specifier = ">=0.28.0" },
+    { name = "mcp", specifier = ">=1.27.0" },
+    { name = "strands-agents", specifier = ">=1.37.0" },
 ]
 
 [[package]]

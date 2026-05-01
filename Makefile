@@ -2,9 +2,11 @@
        init-staging init-production \
        plan-staging plan-production \
        apply-staging apply-production \
-       agent-serve-local \
+       agent-serve-local agent-serve-local-staging agent-serve-local-production \
        agent-invoke-local agent-invoke-staging agent-invoke-production \
        agent-push-staging agent-push-production \
+       gateway-token-staging gateway-token-production \
+       gateway-test-staging gateway-test-production \
        test-slack-bot
 
 # ==============================================================================
@@ -13,6 +15,16 @@
 
 agent-serve-local:
 	cd agent && AWS_PROFILE=apkas-staging.admin uv run main.py
+
+agent-serve-local-staging:
+	$(eval GW_URL := $(shell cd terraform/env/staging && AWS_PROFILE=apkas-staging.admin terraform output -raw gateway_url))
+	$(eval GW_SECRET := $(shell cd terraform/env/staging && AWS_PROFILE=apkas-staging.admin terraform output -raw agentcore_gateway_client_secret_name))
+	cd agent && AWS_PROFILE=apkas-staging.admin GATEWAY_URL=$(GW_URL) GATEWAY_CLIENT_SECRET_NAME=$(GW_SECRET) uv run main.py
+
+agent-serve-local-production:
+	$(eval GW_URL := $(shell cd terraform/env/production && AWS_PROFILE=apkas-production.admin terraform output -raw gateway_url))
+	$(eval GW_SECRET := $(shell cd terraform/env/production && AWS_PROFILE=apkas-production.admin terraform output -raw agentcore_gateway_client_secret_name))
+	cd agent && AWS_PROFILE=apkas-production.admin GATEWAY_URL=$(GW_URL) GATEWAY_CLIENT_SECRET_NAME=$(GW_SECRET) uv run main.py
 
 # ==============================================================================
 # Agent Invoke
@@ -94,3 +106,45 @@ plan-production:
 
 apply-production:
 	cd terraform/env/production && AWS_PROFILE=apkas-production.admin terraform apply
+
+# ==============================================================================
+# AgentCore Gateway helpers (debug)
+# ==============================================================================
+
+# Mint a Cognito M2M access token (prints to stdout). Requires `jq`.
+gateway-token-staging:
+	@SECRET=$$(AWS_PROFILE=apkas-staging.admin aws secretsmanager get-secret-value --secret-id /kasuy/staging/agentcore-gateway-client --query SecretString --output text); \
+	  CID=$$(echo $$SECRET | jq -r .client_id); \
+	  CS=$$(echo $$SECRET | jq -r .client_secret); \
+	  TE=$$(echo $$SECRET | jq -r .token_endpoint); \
+	  SC=$$(echo $$SECRET | jq -r .scope); \
+	  curl -sS -u $$CID:$$CS -H "Content-Type: application/x-www-form-urlencoded" -d "grant_type=client_credentials&scope=$$SC" $$TE | jq -r .access_token
+
+gateway-token-production:
+	@SECRET=$$(AWS_PROFILE=apkas-production.admin aws secretsmanager get-secret-value --secret-id /kasuy/production/agentcore-gateway-client --query SecretString --output text); \
+	  CID=$$(echo $$SECRET | jq -r .client_id); \
+	  CS=$$(echo $$SECRET | jq -r .client_secret); \
+	  TE=$$(echo $$SECRET | jq -r .token_endpoint); \
+	  SC=$$(echo $$SECRET | jq -r .scope); \
+	  curl -sS -u $$CID:$$CS -H "Content-Type: application/x-www-form-urlencoded" -d "grant_type=client_credentials&scope=$$SC" $$TE | jq -r .access_token
+
+# Hit the Gateway with `tools/list` to verify wiring.
+gateway-test-staging:
+	@TOKEN=$$($(MAKE) -s gateway-token-staging); \
+	  GW=$$(cd terraform/env/staging && AWS_PROFILE=apkas-staging.admin terraform output -raw gateway_url); \
+	  curl -sS "$$GW" \
+	    -H "Authorization: Bearer $$TOKEN" \
+	    -H "Content-Type: application/json" \
+	    -H "Accept: application/json,text/event-stream" \
+	    -H "MCP-Protocol-Version: 2025-11-25" \
+	    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | jq .
+
+gateway-test-production:
+	@TOKEN=$$($(MAKE) -s gateway-token-production); \
+	  GW=$$(cd terraform/env/production && AWS_PROFILE=apkas-production.admin terraform output -raw gateway_url); \
+	  curl -sS "$$GW" \
+	    -H "Authorization: Bearer $$TOKEN" \
+	    -H "Content-Type: application/json" \
+	    -H "Accept: application/json,text/event-stream" \
+	    -H "MCP-Protocol-Version: 2025-11-25" \
+	    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | jq .

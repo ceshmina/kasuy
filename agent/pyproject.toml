@@ -3,7 +3,9 @@ name = "kasuy-agent"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "strands-agents>=0.1.0",
+    "strands-agents>=1.37.0",
     "bedrock-agentcore>=0.1.0",
     "boto3>=1.35.0",
+    "mcp>=1.27.0",
+    "httpx>=0.28.0",
 ]

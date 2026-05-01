@@ -42,6 +42,15 @@ data "aws_iam_policy_document" "runtime_permissions" {
     ]
     resources = ["*"]
   }
+
+  dynamic "statement" {
+    for_each = length(var.additional_secret_arns) > 0 ? [1] : []
+    content {
+      effect    = "Allow"
+      actions   = ["secretsmanager:GetSecretValue"]
+      resources = var.additional_secret_arns
+    }
+  }
 }
 
 resource "aws_iam_role" "this" {
@@ -89,9 +98,10 @@ resource "aws_bedrockagentcore_agent_runtime" "this" {
 ################################################################################
 
 resource "aws_bedrockagentcore_agent_runtime_endpoint" "this" {
-  name             = "${var.agent_runtime_name}_${var.environment}_endpoint"
-  agent_runtime_id = aws_bedrockagentcore_agent_runtime.this.agent_runtime_id
-  description      = "Endpoint for ${var.agent_runtime_name} (${var.environment})"
+  name                  = "${var.agent_runtime_name}_${var.environment}_endpoint"
+  agent_runtime_id      = aws_bedrockagentcore_agent_runtime.this.agent_runtime_id
+  agent_runtime_version = aws_bedrockagentcore_agent_runtime.this.agent_runtime_version
+  description           = "Endpoint for ${var.agent_runtime_name} (${var.environment})"
 
   tags = var.tags
 }
