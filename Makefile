@@ -6,7 +6,8 @@
        agent-invoke-local agent-invoke-staging agent-invoke-production \
        agent-push-staging agent-push-production \
        gateway-token-staging gateway-token-production \
-       gateway-test-staging gateway-test-production
+       gateway-test-staging gateway-test-production \
+       test-slack-bot
 
 # ==============================================================================
 # Agent Serve (local)
@@ -61,6 +62,13 @@ agent-push-production:
 	$(eval REGISTRY := $(ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com)
 	AWS_PROFILE=apkas-production.admin aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(REGISTRY)
 	cd agent && docker buildx build --platform linux/arm64 -t $(REGISTRY)/$(ECR_REPOSITORY):$(TAG) --push .
+
+# ==============================================================================
+# Slack Bot Tests
+# ==============================================================================
+
+test-slack-bot:
+	cd slack_bot/tests && python3 -m unittest discover
 
 # ==============================================================================
 # AWS SSO Login

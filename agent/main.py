@@ -89,6 +89,8 @@ agent = Agent(
     tools=_build_tools(),
     system_prompt=(
         "You are a helpful assistant. Answer questions clearly and concisely. "
+        "Always format your responses using standard Markdown "
+        "(headings, bold, italics, lists, links, code blocks, etc.). "
         "When the user asks about recent events, current data, or facts that may have changed, "
         "use the web_search tool to look them up before answering."
     ),

@@ -7,6 +7,8 @@ import urllib.request
 
 import boto3
 
+from mrkdwn import to_mrkdwn
+
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 SLACK_SECRET_NAME = os.environ["SLACK_SECRET_NAME"]
 AGENT_RUNTIME_ARN = os.environ["AGENT_RUNTIME_ARN"]
@@ -135,6 +137,7 @@ def _split_text(text: str, limit: int = SLACK_TEXT_LIMIT) -> list[str]:
 
 def _post_response(channel: str, thread_ts: str, placeholder_ts: str, full_text: str) -> None:
     text = full_text or "_(エージェントから空のレスポンスが返りました)_"
+    text = to_mrkdwn(text)
     parts = _split_text(text)
     _slack_update(channel, placeholder_ts, parts[0])
     for part in parts[1:]:
