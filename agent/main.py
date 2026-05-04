@@ -12,7 +12,13 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from mcp.client.streamable_http import streamablehttp_client
 from strands import Agent
 from strands.models import BedrockModel
+from strands.telemetry import StrandsTelemetry
 from strands.tools.mcp import MCPClient
+
+# Bind Strands' tracer to the global OpenTelemetry TracerProvider that ADOT
+# auto-instrumentation installs at startup, so agent/LLM/tool spans nest under
+# the inbound HTTP span instead of forming a parallel trace.
+StrandsTelemetry()
 
 EXPECTED_MCP_TOOLS = {"web_search", "web_extract"}
 
@@ -76,7 +82,7 @@ def _build_tools() -> list:
         return streamablehttp_client(
             GATEWAY_URL,
             headers={"Authorization": f"Bearer {tokens.get()}"},
-            timeout=30.0,
+            timeout=60.0,
         )
 
     mcp_client = MCPClient(_make_transport)
@@ -112,7 +118,10 @@ agent = Agent(
         "Always format your responses using standard Markdown "
         "(headings, bold, italics, lists, links, code blocks, etc.). "
         "When the user asks about recent events, current data, or facts that may have changed, "
-        "use the web_search tool to look them up before answering."
+        "use the web_search tool to look them up before answering. "
+        "When calling web_search, prefer search_depth=\"basic\" and keep max_results <= 5; "
+        "only escalate to search_depth=\"advanced\" if a basic search returns insufficient detail, "
+        "and even then keep max_results <= 5 to stay within tool latency limits."
     ),
 )
 
