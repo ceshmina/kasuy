@@ -36,9 +36,8 @@ variable "agent_description" {
 }
 
 variable "ecr_image_tag" {
-  description = "Docker image tag to deploy"
+  description = "Docker image tag to deploy. Set per-env in terraform.tfvars or via `-var` (the Makefile passes the git short SHA on deploy)."
   type        = string
-  default     = "latest"
 }
 
 variable "network_mode" {
