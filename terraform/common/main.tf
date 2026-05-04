@@ -22,6 +22,18 @@ module "agentcore_gateway" {
   }
 }
 
+module "agentcore_memory" {
+  source = "../../modules/agentcore_memory"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
 module "agent_runtime" {
   source = "../../modules/agentcore_runtime"
 
@@ -33,8 +45,10 @@ module "agent_runtime" {
   environment_variables = merge(var.agent_environment_variables, {
     GATEWAY_URL                = module.agentcore_gateway.gateway_url
     GATEWAY_CLIENT_SECRET_NAME = module.agentcore_gateway.client_secret_name
+    AGENT_MEMORY_ID            = module.agentcore_memory.memory_id
   })
   additional_secret_arns = [module.agentcore_gateway.client_secret_arn]
+  memory_arn             = module.agentcore_memory.memory_arn
 
   tags = {
     Project     = var.project_name

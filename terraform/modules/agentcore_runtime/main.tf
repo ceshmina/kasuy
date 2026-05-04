@@ -51,6 +51,26 @@ data "aws_iam_policy_document" "runtime_permissions" {
       resources = var.additional_secret_arns
     }
   }
+
+  # AgentCore Memory data-plane access (events + retrieval). Wrapper SDK methods
+  # called by AgentCoreMemorySessionManager translate to these five APIs.
+  dynamic "statement" {
+    for_each = var.memory_arn != null ? [1] : []
+    content {
+      effect = "Allow"
+      actions = [
+        "bedrock-agentcore:CreateEvent",
+        "bedrock-agentcore:DeleteEvent",
+        "bedrock-agentcore:GetEvent",
+        "bedrock-agentcore:ListEvents",
+        "bedrock-agentcore:RetrieveMemoryRecords",
+      ]
+      resources = [
+        var.memory_arn,
+        "${var.memory_arn}/*",
+      ]
+    }
+  }
 }
 
 resource "aws_iam_role" "this" {

@@ -67,3 +67,8 @@ output "search_function_name" {
   description = "Search Lambda function name"
   value       = module.agentcore_gateway.search_function_name
 }
+
+output "agent_memory_id" {
+  description = "AgentCore Memory ID used by the runtime for per-user long-term memory"
+  value       = module.agentcore_memory.memory_id
+}
