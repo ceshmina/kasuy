@@ -12,13 +12,7 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from mcp.client.streamable_http import streamablehttp_client
 from strands import Agent
 from strands.models import BedrockModel
-from strands.telemetry import StrandsTelemetry
 from strands.tools.mcp import MCPClient
-
-# Bind Strands' tracer to the global OpenTelemetry TracerProvider that ADOT
-# auto-instrumentation installs at startup, so agent/LLM/tool spans nest under
-# the inbound HTTP span instead of forming a parallel trace.
-StrandsTelemetry()
 
 EXPECTED_MCP_TOOLS = {"web_search", "web_extract"}
 
