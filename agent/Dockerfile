@@ -14,4 +14,4 @@ USER appuser
 
 EXPOSE 8080
 
-CMD ["uv", "run", "main.py"]
+CMD ["uv", "run", "opentelemetry-instrument", "python", "main.py"]

@@ -22,7 +22,7 @@ variable "log_retention_days" {
 variable "search_lambda_timeout_seconds" {
   description = "Search Lambda timeout"
   type        = number
-  default     = 30
+  default     = 60
 }
 
 variable "search_lambda_memory_mb" {

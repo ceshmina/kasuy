@@ -14,8 +14,11 @@ SLACK_SECRET_NAME = os.environ["SLACK_SECRET_NAME"]
 AGENT_RUNTIME_ARN = os.environ["AGENT_RUNTIME_ARN"]
 AGENT_QUALIFIER = os.environ["AGENT_QUALIFIER"]
 
-SLACK_TEXT_LIMIT = 3500
+SLACK_TEXT_LIMIT = 3000
+SLACK_MIN_CHUNK = 500
 SLACK_API_TIMEOUT = 10
+
+ERROR_NOTICE = ":warning: エージェント呼び出しでエラーが発生しました。もう一度お試しください。"
 
 logger = logging.getLogger()
 logger.setLevel(LOG_LEVEL)
@@ -62,15 +65,46 @@ def _slack_call(method: str, payload: dict) -> dict:
         return data
 
 
-def _slack_update(channel: str, ts: str, text: str) -> None:
-    _slack_call("chat.update", {"channel": channel, "ts": ts, "text": text})
+def _split_position(text: str) -> int:
+    half = max(len(text) // 2, 1)
+    nl = text.rfind("\n", 0, half)
+    return nl if nl > 0 else half
 
 
-def _slack_post(channel: str, thread_ts: str, text: str) -> None:
-    _slack_call(
-        "chat.postMessage",
-        {"channel": channel, "thread_ts": thread_ts, "text": text},
-    )
+def _slack_update(channel: str, ts: str, text: str) -> tuple[bool, list[str]]:
+    """Update a Slack message; on msg_too_long, halve text and return (success, overflow)."""
+    overflow: list[str] = []
+    while True:
+        result = _slack_call("chat.update", {"channel": channel, "ts": ts, "text": text})
+        if result.get("ok"):
+            return True, overflow
+        if result.get("error") != "msg_too_long" or len(text) <= SLACK_MIN_CHUNK:
+            return False, overflow
+        cut = _split_position(text)
+        text, rest = text[:cut], text[cut:].lstrip("\n")
+        overflow.insert(0, rest)
+
+
+def _slack_post(channel: str, thread_ts: str, text: str) -> bool:
+    """Post a Slack message; on msg_too_long, halve text and post each piece."""
+    pending = [text]
+    all_ok = True
+    while pending:
+        current = pending.pop(0)
+        result = _slack_call(
+            "chat.postMessage",
+            {"channel": channel, "thread_ts": thread_ts, "text": current},
+        )
+        if result.get("ok"):
+            continue
+        if result.get("error") != "msg_too_long" or len(current) <= SLACK_MIN_CHUNK:
+            all_ok = False
+            continue
+        cut = _split_position(current)
+        first, rest = current[:cut], current[cut:].lstrip("\n")
+        pending.insert(0, rest)
+        pending.insert(0, first)
+    return all_ok
 
 
 def _make_session_id(channel: str, thread_ts: str) -> str:
@@ -94,6 +128,8 @@ def _invoke_agent(prompt: str, session_id: str, actor_id: str, metadata: dict) -
     )
 
     chunks: list[str] = []
+    saw_message_stop = False
+    event_count = 0
     for raw in response["response"].iter_lines():
         if not raw:
             continue
@@ -107,15 +143,33 @@ def _invoke_agent(prompt: str, session_id: str, actor_id: str, metadata: dict) -
             continue
         if not isinstance(data, dict):
             continue
+        event = data.get("event", {})
+        event_count += 1
+        if "messageStop" in event:
+            saw_message_stop = True
         delta = (
-            data.get("event", {})
-            .get("contentBlockDelta", {})
+            event.get("contentBlockDelta", {})
             .get("delta", {})
             .get("text")
         )
         if delta:
             chunks.append(delta)
-    return "".join(chunks).strip()
+    text = "".join(chunks).strip()
+    logger.info(
+        "agent stream finished session=%s events=%d chars=%d message_stop=%s",
+        session_id,
+        event_count,
+        len(text),
+        saw_message_stop,
+    )
+    if not saw_message_stop:
+        logger.warning(
+            "agent stream ended without messageStop session=%s events=%d chars=%d",
+            session_id,
+            event_count,
+            len(text),
+        )
+    return text
 
 
 def _split_text(text: str, limit: int = SLACK_TEXT_LIMIT) -> list[str]:
@@ -139,9 +193,11 @@ def _post_response(channel: str, thread_ts: str, placeholder_ts: str, full_text:
     text = full_text or "_(エージェントから空のレスポンスが返りました)_"
     text = to_mrkdwn(text)
     parts = _split_text(text)
-    _slack_update(channel, placeholder_ts, parts[0])
-    for part in parts[1:]:
-        _slack_post(channel, thread_ts, part)
+    update_ok, overflow = _slack_update(channel, placeholder_ts, parts[0])
+    rest_ok = all(_slack_post(channel, thread_ts, part) for part in overflow + parts[1:])
+    if not (update_ok and rest_ok):
+        logger.warning("slack delivery incomplete; falling back to error notice")
+        _slack_update(channel, placeholder_ts, ERROR_NOTICE)
 
 
 def _process_record(record: dict) -> None:
@@ -167,11 +223,7 @@ def _process_record(record: dict) -> None:
     except Exception:
         logger.exception("invoke_agent_runtime failed")
         try:
-            _slack_update(
-                channel,
-                placeholder_ts,
-                ":warning: エージェント呼び出しでエラーが発生しました。もう一度お試しください。",
-            )
+            _slack_update(channel, placeholder_ts, ERROR_NOTICE)
         except Exception:
             logger.exception("failed to update slack with error notice")
         raise

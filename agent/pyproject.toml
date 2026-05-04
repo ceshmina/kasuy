@@ -8,4 +8,5 @@ dependencies = [
     "boto3>=1.35.0",
     "mcp>=1.27.0",
     "httpx>=0.28.0",
+    "aws-opentelemetry-distro>=0.10.0",
 ]

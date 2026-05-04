@@ -37,7 +37,11 @@ def _tavily_post(endpoint: str, payload: dict, timeout: int) -> dict:
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", errors="replace")
+        logger.error("tavily http error %s on %s: %s", e.code, endpoint, detail)
         raise RuntimeError(f"Tavily HTTP {e.code}: {detail}") from e
+    except urllib.error.URLError as e:
+        logger.exception("tavily request failed on %s (timeout=%ss)", endpoint, timeout)
+        raise RuntimeError(f"Tavily request failed: {e.reason}") from e
 
 
 def _tool_web_search(args: dict) -> dict:
@@ -50,7 +54,7 @@ def _tool_web_search(args: dict) -> dict:
             "include_answer": False,
             "include_raw_content": False,
         },
-        timeout=20,
+        timeout=50,
     )
     return {
         "results": [

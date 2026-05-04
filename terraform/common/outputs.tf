@@ -13,11 +13,6 @@ output "agent_runtime_arn" {
   value       = module.agent_runtime.agent_runtime_arn
 }
 
-output "endpoint_arn" {
-  description = "The AgentCore runtime endpoint ARN"
-  value       = module.agent_runtime.endpoint_arn
-}
-
 output "endpoint_name" {
   description = "The AgentCore runtime endpoint name (used as qualifier when invoking)"
   value       = module.agent_runtime.endpoint_name
