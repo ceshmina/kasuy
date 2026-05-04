@@ -2,7 +2,7 @@ environment        = "staging"
 aws_region         = "ap-northeast-1"
 agent_runtime_name = "kasuy_agent"
 agent_description  = "Q&A agent (staging)"
-ecr_image_tag      = "latest"
+ecr_image_tag      = "3c91b0d"
 network_mode       = "PUBLIC"
 
 agent_environment_variables = {
