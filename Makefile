@@ -5,6 +5,8 @@
        agent-serve-local agent-serve-local-staging agent-serve-local-production \
        agent-invoke-local agent-invoke-staging agent-invoke-production \
        agent-push-staging agent-push-production \
+       agent-deploy-staging agent-deploy-production \
+       _check-clean-tree \
        gateway-token-staging gateway-token-production \
        gateway-test-staging gateway-test-production \
        test-slack-bot
@@ -49,19 +51,50 @@ agent-invoke-production:
 
 AWS_REGION ?= ap-northeast-1
 ECR_REPOSITORY = kasuy-agent
-TAG ?= latest
+# Default to the current commit SHA so each deployment carries an immutable tag.
+# Override with `make ... TAG=<custom-tag>` if needed (e.g., to redeploy a known good build).
+TAG ?= $(shell git rev-parse --short HEAD)
 
-agent-push-staging:
+# Refuse to push if the working tree is dirty — otherwise the git-SHA tag would
+# misrepresent what was actually built. Set ALLOW_DIRTY=1 to bypass.
+_check-clean-tree:
+	@if [ -z "$$ALLOW_DIRTY" ] && [ -n "$$(git status --porcelain)" ]; then \
+	  echo "ERROR: working tree has uncommitted changes; commit or stash before deploying."; \
+	  echo "       (set ALLOW_DIRTY=1 to bypass — the resulting tag will not match committed state)"; \
+	  exit 1; \
+	fi
+
+agent-push-staging: _check-clean-tree
 	$(eval ACCOUNT_ID := $(shell AWS_PROFILE=apkas-staging.admin aws sts get-caller-identity --query Account --output text))
 	$(eval REGISTRY := $(ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com)
 	AWS_PROFILE=apkas-staging.admin aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(REGISTRY)
 	cd agent && docker buildx build --platform linux/arm64 -t $(REGISTRY)/$(ECR_REPOSITORY):$(TAG) --push .
+	@echo "Pushed $(REGISTRY)/$(ECR_REPOSITORY):$(TAG)"
 
-agent-push-production:
+agent-push-production: _check-clean-tree
 	$(eval ACCOUNT_ID := $(shell AWS_PROFILE=apkas-production.admin aws sts get-caller-identity --query Account --output text))
 	$(eval REGISTRY := $(ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com)
 	AWS_PROFILE=apkas-production.admin aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(REGISTRY)
 	cd agent && docker buildx build --platform linux/arm64 -t $(REGISTRY)/$(ECR_REPOSITORY):$(TAG) --push .
+	@echo "Pushed $(REGISTRY)/$(ECR_REPOSITORY):$(TAG)"
+
+# ==============================================================================
+# Agent Deploy (push image + apply terraform with the new tag)
+# ==============================================================================
+# After a successful apply, the env's terraform.tfvars is rewritten to record
+# the deployed tag, so subsequent `apply-*` runs (without a TAG override) stay
+# consistent with what the runtime is actually running. Commit the tfvars diff
+# to keep deploy history in git.
+
+agent-deploy-staging: agent-push-staging
+	cd terraform/env/staging && AWS_PROFILE=apkas-staging.admin terraform apply -var="ecr_image_tag=$(TAG)"
+	sed -i.bak -E 's/^(ecr_image_tag[[:space:]]+= )"[^"]*"/\1"$(TAG)"/' terraform/env/staging/terraform.tfvars && rm terraform/env/staging/terraform.tfvars.bak
+	@echo "Deployed $(TAG) to staging; tfvars updated — remember to commit."
+
+agent-deploy-production: agent-push-production
+	cd terraform/env/production && AWS_PROFILE=apkas-production.admin terraform apply -var="ecr_image_tag=$(TAG)"
+	sed -i.bak -E 's/^(ecr_image_tag[[:space:]]+= )"[^"]*"/\1"$(TAG)"/' terraform/env/production/terraform.tfvars && rm terraform/env/production/terraform.tfvars.bak
+	@echo "Deployed $(TAG) to production; tfvars updated — remember to commit."
 
 # ==============================================================================
 # Slack Bot Tests
