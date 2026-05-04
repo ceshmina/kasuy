@@ -92,16 +92,3 @@ resource "aws_bedrockagentcore_agent_runtime" "this" {
 
   tags = var.tags
 }
-
-################################################################################
-# Runtime Endpoint
-################################################################################
-
-resource "aws_bedrockagentcore_agent_runtime_endpoint" "this" {
-  name                  = "${var.agent_runtime_name}_${var.environment}_endpoint"
-  agent_runtime_id      = aws_bedrockagentcore_agent_runtime.this.agent_runtime_id
-  agent_runtime_version = aws_bedrockagentcore_agent_runtime.this.agent_runtime_version
-  description           = "Endpoint for ${var.agent_runtime_name} (${var.environment})"
-
-  tags = var.tags
-}

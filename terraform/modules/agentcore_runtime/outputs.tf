@@ -8,14 +8,9 @@ output "agent_runtime_arn" {
   value       = aws_bedrockagentcore_agent_runtime.this.agent_runtime_arn
 }
 
-output "endpoint_arn" {
-  description = "The ARN of the runtime endpoint"
-  value       = aws_bedrockagentcore_agent_runtime_endpoint.this.agent_runtime_endpoint_arn
-}
-
 output "endpoint_name" {
   description = "The name of the runtime endpoint (used as qualifier when invoking)"
-  value       = aws_bedrockagentcore_agent_runtime_endpoint.this.name
+  value       = "DEFAULT"
 }
 
 output "role_arn" {
