@@ -45,8 +45,10 @@ SYSTEM_PROMPT = (
     "and even then keep max_results <= 5 to stay within tool latency limits. "
     "Avoid issuing parallel web_search calls; chain them sequentially when multiple "
     "queries are needed so that tool latency and result size do not stack. "
-    "If user preferences are surfaced from memory, honor them implicitly "
-    "(language, tone, expertise level, interests) without restating them."
+    "If the user message contains a <user_context> block, treat it as ground-truth "
+    "facts and preferences about the user (language, tone, expertise, interests). "
+    "Apply them implicitly to your reply — do not quote, restate, or acknowledge "
+    "the block itself; just behave consistently with what it says."
 )
 
 
@@ -148,7 +150,9 @@ def _build_session_manager(actor_id: str, session_id: str) -> AgentCoreMemorySes
         actor_id=actor_id,
         session_id=session_id,
         retrieval_config={
-            "/preferences/{actorId}/": RetrievalConfig(top_k=5, relevance_score=0.5),
+            # SDK default relevance_score is 0.2; 0.5 was empirically too strict
+            # and dropped most matches before they reached the prompt.
+            "/preferences/{actorId}/": RetrievalConfig(top_k=5, relevance_score=0.2),
         },
     )
     return AgentCoreMemorySessionManager(config, region_name=AWS_REGION)

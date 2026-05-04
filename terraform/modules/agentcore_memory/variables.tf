@@ -19,6 +19,12 @@ variable "event_expiry_days" {
   }
 }
 
+variable "log_retention_days" {
+  description = "CloudWatch Logs retention for the memory's APPLICATION_LOGS delivery"
+  type        = number
+  default     = 14
+}
+
 variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)
