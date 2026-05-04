@@ -117,11 +117,16 @@ agent = Agent(
         "You are a helpful assistant. Answer questions clearly and concisely. "
         "Always format your responses using standard Markdown "
         "(headings, bold, italics, lists, links, code blocks, etc.). "
+        "Keep responses concise: aim for under ~1500 characters total. "
+        "For long search results, summarize key points instead of quoting "
+        "large blocks of text verbatim. "
         "When the user asks about recent events, current data, or facts that may have changed, "
         "use the web_search tool to look them up before answering. "
         "When calling web_search, prefer search_depth=\"basic\" and keep max_results <= 5; "
         "only escalate to search_depth=\"advanced\" if a basic search returns insufficient detail, "
-        "and even then keep max_results <= 5 to stay within tool latency limits."
+        "and even then keep max_results <= 5 to stay within tool latency limits. "
+        "Avoid issuing parallel web_search calls; chain them sequentially when multiple "
+        "queries are needed so that tool latency and result size do not stack."
     ),
 )
 
@@ -130,9 +135,19 @@ app = BedrockAgentCoreApp()
 
 @app.entrypoint
 async def handler(request):
+    session_id = request.get("session_id", "unknown")
     prompt = request.get("prompt", "Hello")
-    async for event in agent.stream_async(prompt):
-        yield event
+    logger.info("handler start session=%s prompt_len=%d", session_id, len(prompt))
+    event_count = 0
+    try:
+        async for event in agent.stream_async(prompt):
+            event_count += 1
+            yield event
+    except Exception:
+        logger.exception("handler failed session=%s after %d events", session_id, event_count)
+        raise
+    finally:
+        logger.info("handler end session=%s events=%d", session_id, event_count)
 
 
 if __name__ == "__main__":

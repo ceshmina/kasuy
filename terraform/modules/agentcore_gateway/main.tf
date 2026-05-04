@@ -421,3 +421,37 @@ resource "aws_bedrockagentcore_gateway_target" "tavily" {
 
   depends_on = [aws_lambda_permission.gateway_invoke]
 }
+
+################################################################################
+# Gateway log delivery to CloudWatch
+################################################################################
+
+resource "aws_cloudwatch_log_group" "gateway" {
+  name              = "/aws/vendedlogs/bedrock-agentcore/gateway/APPLICATION_LOGS/${aws_bedrockagentcore_gateway.this.gateway_id}"
+  retention_in_days = var.log_retention_days
+  tags              = var.tags
+}
+
+resource "aws_cloudwatch_log_delivery_source" "gateway" {
+  name         = "${local.name_prefix}-gateway-app-logs"
+  log_type     = "APPLICATION_LOGS"
+  resource_arn = aws_bedrockagentcore_gateway.this.gateway_arn
+  tags         = var.tags
+}
+
+resource "aws_cloudwatch_log_delivery_destination" "gateway" {
+  name = "${local.name_prefix}-gateway-app-logs"
+
+  delivery_destination_configuration {
+    destination_resource_arn = aws_cloudwatch_log_group.gateway.arn
+  }
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_log_delivery" "gateway" {
+  delivery_source_name     = aws_cloudwatch_log_delivery_source.gateway.name
+  delivery_destination_arn = aws_cloudwatch_log_delivery_destination.gateway.arn
+
+  tags = var.tags
+}

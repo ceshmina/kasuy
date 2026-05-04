@@ -92,3 +92,37 @@ resource "aws_bedrockagentcore_agent_runtime" "this" {
 
   tags = var.tags
 }
+
+################################################################################
+# Runtime log delivery to CloudWatch
+################################################################################
+
+resource "aws_cloudwatch_log_group" "runtime" {
+  name              = "/aws/vendedlogs/bedrock-agentcore/runtime/APPLICATION_LOGS/${aws_bedrockagentcore_agent_runtime.this.agent_runtime_id}"
+  retention_in_days = var.log_retention_days
+  tags              = var.tags
+}
+
+resource "aws_cloudwatch_log_delivery_source" "runtime" {
+  name         = "${var.agent_runtime_name}_${var.environment}_app_logs"
+  log_type     = "APPLICATION_LOGS"
+  resource_arn = aws_bedrockagentcore_agent_runtime.this.agent_runtime_arn
+  tags         = var.tags
+}
+
+resource "aws_cloudwatch_log_delivery_destination" "runtime" {
+  name = "${var.agent_runtime_name}_${var.environment}_app_logs"
+
+  delivery_destination_configuration {
+    destination_resource_arn = aws_cloudwatch_log_group.runtime.arn
+  }
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_log_delivery" "runtime" {
+  delivery_source_name     = aws_cloudwatch_log_delivery_source.runtime.name
+  delivery_destination_arn = aws_cloudwatch_log_delivery_destination.runtime.arn
+
+  tags = var.tags
+}

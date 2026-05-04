@@ -37,6 +37,12 @@ variable "additional_secret_arns" {
   default     = []
 }
 
+variable "log_retention_days" {
+  description = "CloudWatch Logs retention for the runtime's application log delivery"
+  type        = number
+  default     = 14
+}
+
 variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)
