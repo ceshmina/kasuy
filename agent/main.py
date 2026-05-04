@@ -8,6 +8,13 @@ import time
 
 import boto3
 import httpx
+from bedrock_agentcore.memory.integrations.strands.config import (
+    AgentCoreMemoryConfig,
+    RetrievalConfig,
+)
+from bedrock_agentcore.memory.integrations.strands.session_manager import (
+    AgentCoreMemorySessionManager,
+)
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from mcp.client.streamable_http import streamablehttp_client
 from strands import Agent
@@ -21,7 +28,26 @@ logger = logging.getLogger("kasuy.agent")
 
 GATEWAY_URL = os.environ.get("GATEWAY_URL")
 GATEWAY_CLIENT_SECRET_NAME = os.environ.get("GATEWAY_CLIENT_SECRET_NAME")
+AGENT_MEMORY_ID = os.environ.get("AGENT_MEMORY_ID")
 AWS_REGION = os.environ.get("AWS_REGION", "ap-northeast-1")
+
+SYSTEM_PROMPT = (
+    "You are a helpful assistant. Answer questions clearly and concisely. "
+    "Always format your responses using standard Markdown "
+    "(headings, bold, italics, lists, links, code blocks, etc.). "
+    "Keep responses concise: aim for under ~1500 characters total. "
+    "For long search results, summarize key points instead of quoting "
+    "large blocks of text verbatim. "
+    "When the user asks about recent events, current data, or facts that may have changed, "
+    "use the web_search tool to look them up before answering. "
+    "When calling web_search, prefer search_depth=\"basic\" and keep max_results <= 5; "
+    "only escalate to search_depth=\"advanced\" if a basic search returns insufficient detail, "
+    "and even then keep max_results <= 5 to stay within tool latency limits. "
+    "Avoid issuing parallel web_search calls; chain them sequentially when multiple "
+    "queries are needed so that tool latency and result size do not stack. "
+    "If user preferences are surfaced from memory, honor them implicitly "
+    "(language, tone, expertise level, interests) without restating them."
+)
 
 
 class CognitoTokenProvider:
@@ -99,30 +125,34 @@ def _build_tools() -> list:
     return [mcp_client]
 
 
-model = BedrockModel(
+_model = BedrockModel(
     model_id="jp.anthropic.claude-sonnet-4-6",
     streaming=True,
 )
+_tools = _build_tools()
 
-agent = Agent(
-    model=model,
-    tools=_build_tools(),
-    system_prompt=(
-        "You are a helpful assistant. Answer questions clearly and concisely. "
-        "Always format your responses using standard Markdown "
-        "(headings, bold, italics, lists, links, code blocks, etc.). "
-        "Keep responses concise: aim for under ~1500 characters total. "
-        "For long search results, summarize key points instead of quoting "
-        "large blocks of text verbatim. "
-        "When the user asks about recent events, current data, or facts that may have changed, "
-        "use the web_search tool to look them up before answering. "
-        "When calling web_search, prefer search_depth=\"basic\" and keep max_results <= 5; "
-        "only escalate to search_depth=\"advanced\" if a basic search returns insufficient detail, "
-        "and even then keep max_results <= 5 to stay within tool latency limits. "
-        "Avoid issuing parallel web_search calls; chain them sequentially when multiple "
-        "queries are needed so that tool latency and result size do not stack."
-    ),
-)
+
+def _build_session_manager(actor_id: str, session_id: str) -> AgentCoreMemorySessionManager | None:
+    """Build a per-request session manager that ties events to the Slack user.
+
+    Returns None when memory is disabled (no AGENT_MEMORY_ID, or missing
+    actor/session). Without a session manager, the agent runs stateless.
+    """
+    if not AGENT_MEMORY_ID:
+        return None
+    if not actor_id or actor_id == "unknown" or not session_id or session_id == "unknown":
+        logger.info("memory disabled for this request (actor=%s session=%s)", actor_id, session_id)
+        return None
+    config = AgentCoreMemoryConfig(
+        memory_id=AGENT_MEMORY_ID,
+        actor_id=actor_id,
+        session_id=session_id,
+        retrieval_config={
+            "/preferences/{actorId}/": RetrievalConfig(top_k=5, relevance_score=0.5),
+        },
+    )
+    return AgentCoreMemorySessionManager(config, region_name=AWS_REGION)
+
 
 app = BedrockAgentCoreApp()
 
@@ -130,13 +160,37 @@ app = BedrockAgentCoreApp()
 @app.entrypoint
 async def handler(request):
     session_id = request.get("session_id", "unknown")
+    actor_id = request.get("actor_id", "unknown")
     prompt = request.get("prompt", "Hello")
-    logger.info("handler start session=%s prompt_len=%d", session_id, len(prompt))
+    logger.info(
+        "handler start session=%s actor=%s prompt_len=%d",
+        session_id,
+        actor_id,
+        len(prompt),
+    )
     event_count = 0
+    session_manager = _build_session_manager(actor_id, session_id)
     try:
-        async for event in agent.stream_async(prompt):
-            event_count += 1
-            yield event
+        if session_manager is not None:
+            with session_manager as sm:
+                agent = Agent(
+                    model=_model,
+                    tools=_tools,
+                    system_prompt=SYSTEM_PROMPT,
+                    session_manager=sm,
+                )
+                async for event in agent.stream_async(prompt):
+                    event_count += 1
+                    yield event
+        else:
+            agent = Agent(
+                model=_model,
+                tools=_tools,
+                system_prompt=SYSTEM_PROMPT,
+            )
+            async for event in agent.stream_async(prompt):
+                event_count += 1
+                yield event
     except Exception:
         logger.exception("handler failed session=%s after %d events", session_id, event_count)
         raise

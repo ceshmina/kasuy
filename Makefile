@@ -21,12 +21,14 @@ agent-serve-local:
 agent-serve-local-staging:
 	$(eval GW_URL := $(shell cd terraform/env/staging && AWS_PROFILE=apkas-staging.admin terraform output -raw gateway_url))
 	$(eval GW_SECRET := $(shell cd terraform/env/staging && AWS_PROFILE=apkas-staging.admin terraform output -raw agentcore_gateway_client_secret_name))
-	cd agent && AWS_PROFILE=apkas-staging.admin GATEWAY_URL=$(GW_URL) GATEWAY_CLIENT_SECRET_NAME=$(GW_SECRET) uv run main.py
+	$(eval MEM_ID := $(shell cd terraform/env/staging && AWS_PROFILE=apkas-staging.admin terraform output -raw agent_memory_id))
+	cd agent && AWS_PROFILE=apkas-staging.admin GATEWAY_URL=$(GW_URL) GATEWAY_CLIENT_SECRET_NAME=$(GW_SECRET) AGENT_MEMORY_ID=$(MEM_ID) uv run main.py
 
 agent-serve-local-production:
 	$(eval GW_URL := $(shell cd terraform/env/production && AWS_PROFILE=apkas-production.admin terraform output -raw gateway_url))
 	$(eval GW_SECRET := $(shell cd terraform/env/production && AWS_PROFILE=apkas-production.admin terraform output -raw agentcore_gateway_client_secret_name))
-	cd agent && AWS_PROFILE=apkas-production.admin GATEWAY_URL=$(GW_URL) GATEWAY_CLIENT_SECRET_NAME=$(GW_SECRET) uv run main.py
+	$(eval MEM_ID := $(shell cd terraform/env/production && AWS_PROFILE=apkas-production.admin terraform output -raw agent_memory_id))
+	cd agent && AWS_PROFILE=apkas-production.admin GATEWAY_URL=$(GW_URL) GATEWAY_CLIENT_SECRET_NAME=$(GW_SECRET) AGENT_MEMORY_ID=$(MEM_ID) uv run main.py
 
 # ==============================================================================
 # Agent Invoke

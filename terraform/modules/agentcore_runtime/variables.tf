@@ -37,6 +37,12 @@ variable "additional_secret_arns" {
   default     = []
 }
 
+variable "memory_arn" {
+  description = "Optional AgentCore Memory ARN the runtime is allowed to read/write events on. Null disables memory IAM."
+  type        = string
+  default     = null
+}
+
 variable "log_retention_days" {
   description = "CloudWatch Logs retention for the runtime's application log delivery"
   type        = number
